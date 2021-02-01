@@ -1,6 +1,9 @@
 const {
     Tapable,
-    AsyncSeriesHook
+    AsyncSeriesHook,
+    SyncBailHook,
+    SyncHook,
+    AsyncParallelHook,
 } = require('tapable')
 
 class Compiler extends Tapable {
@@ -9,7 +12,12 @@ class Compiler extends Tapable {
         this.context = context
         // 挂载一系列的 Tapable 钩子
         this.hooks = {
-            done: new AsyncSeriesHook(['stats'])
+            done: new AsyncSeriesHook(['stats']),
+            entryOption: new SyncBailHook(['context', 'entry']),
+            beforeCompile: new AsyncSeriesHook(['params']),
+            compile: new SyncHook(['params']),
+            make: new AsyncParallelHook(['compilation']),
+            afterCompile: new AsyncSeriesHook(['compilation']),
         }
     }
     run(callback) {
