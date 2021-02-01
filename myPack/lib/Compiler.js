@@ -14,6 +14,13 @@ class Compiler extends Tapable {
         this.hooks = {
             done: new AsyncSeriesHook(['stats']),
             entryOption: new SyncBailHook(['context', 'entry']),
+
+            beforeRun: new AsyncSeriesHook(['compiler']),
+            run: new AsyncSeriesHook(['compiler']),
+
+            thisCompilation: new SyncHook(['compilation', 'params']),
+            compilation: new SyncHook(['compilation', 'params']),
+            
             beforeCompile: new AsyncSeriesHook(['params']),
             compile: new SyncHook(['params']),
             make: new AsyncParallelHook(['compilation']),
@@ -21,16 +28,34 @@ class Compiler extends Tapable {
         }
     }
     run(callback) {
-        callback(null, {
-            toJson() {
-                return {
-                    entries: [], // 当前打包的入口信息
-                    chunks: [], // 当前打包的 chunk 信息
-                    modules: [], // 模块信息
-                    assets: [], // 最终打包生成的资源
+        console.log('执行 run 方法~~~~~~')
+        const finalCallback = function(err, stats) {
+            callback(err, stats)
+        }
+
+        const onCompiled = function(err, compilation) {
+            console.log('onCompiled~~~~~~')
+            finalCallback(err, {
+                toJson() {
+                    return {
+                        entries: [], // 当前打包的入口信息
+                        chunks: [], // 当前打包的 chunk 信息
+                        modules: [], // 模块信息
+                        assets: [], // 最终打包生成的资源
+                    }
                 }
-            }
+            })
+        }
+        
+        this.hooks.beforeRun.callAsync(this, (err) => {
+            this.hooks.run.callAsync(this, (err) => {
+                this.compile(onCompiled)
+            })
         })
+    }
+
+    compile(callback) {
+
     }
 }
 
