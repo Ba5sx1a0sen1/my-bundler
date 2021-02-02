@@ -5,6 +5,8 @@ const {
     SyncHook,
     AsyncParallelHook,
 } = require('tapable')
+const Compilation = require('./Compilation')
+const NormalModuleFactory = require('./NormalModuleFactory')
 
 class Compiler extends Tapable {
     constructor(context) {
@@ -55,7 +57,31 @@ class Compiler extends Tapable {
     }
 
     compile(callback) {
+        const params = this.newCompilationParams()
+        this.hooks.beforeRun.callAsync(params, (err) => {
+            this.hooks.compile.call(params)
+            const compilation = this.newCompilation(params)
 
+            this.hooks.make.callAsync(compilation, (err) => {
+                console.log('make钩子监听触发了~~~')
+                callback()
+            })
+        })
+    }
+
+    newCompilationParams() {
+        const params = {
+            normalModuleFactory: new NormalModuleFactory()
+        }
+        return params
+    }
+
+    newCompilation(params) {
+        const compilation = this.createCompilation()
+    }
+
+    createCompilation() {
+        return new Compilation(this)
     }
 }
 
