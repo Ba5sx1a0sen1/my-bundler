@@ -7,7 +7,7 @@ const {
 } = require('tapable')
 const Compilation = require('./Compilation')
 const NormalModuleFactory = require('./NormalModuleFactory')
-
+const Stats = require('./Stats')
 class Compiler extends Tapable {
     constructor(context) {
         super()
@@ -37,16 +37,7 @@ class Compiler extends Tapable {
 
         const onCompiled = function(err, compilation) {
             console.log('onCompiled~~~~~~')
-            finalCallback(err, {
-                toJson() {
-                    return {
-                        entries: [], // 当前打包的入口信息
-                        chunks: [], // 当前打包的 chunk 信息
-                        modules: [], // 模块信息
-                        assets: [], // 最终打包生成的资源
-                    }
-                }
-            })
+            finalCallback(err, new Stats(compilation))
         }
         
         this.hooks.beforeRun.callAsync(this, (err) => {
@@ -64,7 +55,7 @@ class Compiler extends Tapable {
 
             this.hooks.make.callAsync(compilation, (err) => {
                 console.log('make钩子监听触发了~~~')
-                callback()
+                callback(err, compilation) // onCompiled
             })
         })
     }
@@ -78,6 +69,9 @@ class Compiler extends Tapable {
 
     newCompilation(params) {
         const compilation = this.createCompilation()
+        this.hooks.thisCompilation.call(compilation, params)
+        this.hooks.compilation.call(compilation, params)
+        return compilation
     }
 
     createCompilation() {

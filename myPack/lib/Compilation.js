@@ -1,5 +1,13 @@
 const path = require('path')
+const Parser = require('./Parser')
+const NormalModuleFactory = require('./NormalModuleFactory')
+
 const { Tapable, SyncHook } = require('tapable')
+
+// 实例化 NormalModuleFactory parser
+const normalModuleFactory = new NormalModuleFactory()
+const parser = new Parser()
+
 class Compilation extends Tapable {
     constructor(compiler) {
         super()
