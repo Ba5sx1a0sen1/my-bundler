@@ -12,6 +12,11 @@
     "tapable": "^1.1.3"
   },
   "devDependencies": {
-    "babylon": "^6.18.0"
+    "@babel/core": "^7.12.13",
+    "@babel/generator": "^7.12.13",
+    "@babel/traverse": "^7.12.13",
+    "@babel/types": "^7.12.13",
+    "babylon": "^6.18.0",
+    "neo-async": "^2.6.2"
   }
 }

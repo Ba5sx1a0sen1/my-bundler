@@ -5,10 +5,5 @@ let compiler = webpack(options)
 
 compiler.run((err, stats) => {
     console.log(err)
-    console.log(stats.toJson({
-        entries: false,
-        chunks: false,
-        modules: false,
-        assets: false,
-    }))
+    // console.log(stats)
 })

@@ -1,12 +1,18 @@
+const path = require('path')
+const types = require('@babel/types')
+const generator = require('@babel/generator').default
+const traverse = require('@babel/traverse').default
+
 class NormalModule {
     constructor(data) {
+        this.context = data.context
         this.name = data.name
-        this.entry = data.entry
         this.rawRequest = data.rawRequest
         this.parser = data.parser // 待完成
         this.resource = data.resource 
         this._source // 源代码
         this._ast // 某个模块对应的 ast
+        this.dependencies = [] // 定义一个空数组 用于保存被依赖加载的模块
     }
 
     build(compilation, callback) {
@@ -19,6 +25,35 @@ class NormalModule {
          */
         this.doBuild(compilation, (err) => {
             this._ast = this.parser.parse(this._source)
+            // 转换 ast
+            traverse(this._ast, {
+                CallExpression: (nodePath) => {
+                    let node = nodePath.node
+                    // 定位 require 所在的节点
+                    if (node.callee.name === 'require') {
+                        // 获取原始请求路径
+                        let modulePath = node.arguments[0].value // './title'
+                        // 取出当前被加载的模块名称
+                        let moduleName = modulePath.split(path.posix.sep).pop() // 数组最后一项 title
+                        // 当前只处理 js
+                        let extName = moduleName.indexOf('.') == -1 ? '.js' : ''
+                        moduleName += extName // title.js
+                        // 读取js的内容 需要处理绝对路径
+                        let depResource = path.posix.join(path.posix.dirname(this.resource), moduleName)
+                        // 定义当前模块的 id
+                        let depModuleId = './' + path.posix.relative(this.context, depResource) // ./src/title.js
+                        console.log(depModuleId)
+                        // 记录当前被依赖模块的信息， 方便后续递归加载
+                        this.dependencies.push({
+                            name: this.name, // 需要修改
+                            context: this.context,
+                            rawRequest: moduleName,
+                            moduleId: depModuleId,
+                            resource: depResource
+                        })
+                    }
+                }
+            })
             callback(err)
         })
     }
