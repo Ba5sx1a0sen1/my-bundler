@@ -48,6 +48,19 @@ class Compilation extends Tapable {
         this.entries.push(entryModule)
         this.modules.push(entryModule)
     }
+
+    /**
+     * 完成 build 行为
+     * @param {*} module 当前需要被 build 的模块
+     * @param {*} callback 
+     */
+    buildModule(module, callback) {
+        module.build(this, (err) => {
+            // 如果代码走到这里意味着当前 module 编译完成
+            this.hooks.succeedModule.call(module)
+            callback(err)
+        })
+    }
 }
 
 module.exports = Compilation

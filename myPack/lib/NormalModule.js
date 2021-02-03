@@ -8,6 +8,31 @@ class NormalModule {
         this._source // 源代码
         this._ast // 某个模块对应的 ast
     }
+
+    build(compilation, callback) {
+        /**
+         * 01 从文件中读取到将来要加载的 module 内容，
+         * 02 如果当前不是 js 模块则需要 loader 进行处理，最终返回 js 模块
+         * 03 上述的操作完成之后就可以将 js 代码转为 ast 语法树
+         * 04 当前 js 模块内部可能又引用了很多其他模块，因此我们需要递归完成
+         * 05 前面的完成之后，我们只需要重复执行即可
+         */
+        this.doBuild(compilation, (err) => {
+            this._ast = this.parser.parse(this._source)
+            callback(err)
+        })
+    }
+
+    doBuild(compilation, callback) {
+        this.getSource(compilation, (err, source) => {
+            this._source = source
+            callback()
+        })
+    }
+
+    getSource(compilation, callback) {
+        compilation.inputFileSystem.readFile(this.resource, 'utf8', callback)
+    }
 }
 
 module.exports = NormalModule
