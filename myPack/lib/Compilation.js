@@ -1,3 +1,4 @@
+    const ejs = require('ejs')
 const path = require('path')
 const async = require('neo-async')
 const Parser = require('./Parser')
@@ -22,6 +23,8 @@ class Compilation extends Tapable {
         this.entries = [] // 存入所有入口模块的数组
         this.modules = [] // 存放所有模块的数组
         this.chunks = [] // 存放当前次打包过程所产生的 chunks
+        this.assets = []
+        this.files = []
         this.hooks = {
             succeedModule: new SyncHook(['module']),
             seal: new SyncHook(),
@@ -127,7 +130,42 @@ class Compilation extends Tapable {
             // 给 chunk 的属性赋值
             chunk.modules = this.modules.filter(module => module.name === chunk.name)
         }
+
+        // chunk 流程梳理之后就进入到 chunk 代码处理环节  （模版文件+模块中的源代码）=》 chunk.js
+        this.hooks.afterChunks.call(this.chunks)
+
+        // 生成代码内容
+        this.createChunkAssets()
+
         callback()
+    }
+
+    createChunkAssets() {
+        for(let i = 0; i < this.chunks.length; i++) {
+            const chunk = this.chunks[i]
+            const fileName = chunk.name + '.js'
+            chunk.files.push(fileName)
+            // 01 获取模板文件的路径
+            let tempPath = path.posix.join(__dirname, 'template/main.ejs')
+            // 02 读取模块内容中的代码
+            // 生成具体的 chunk 内容
+            let tempCode = this.inputFileSystem.readFileSync(tempPath, 'utf8')
+            // 03 获取渲染函数
+            let tempRender = ejs.compile(tempCode)
+            // 04 按照 ejs 的语法渲染数据
+            let source = tempRender({
+                entryModuleId: chunk.entryModule.moduleId,
+                modules: chunk.modules
+            })
+            
+            // 输出文件
+            this.emitAssets(fileName, source)
+        }
+    }
+
+    emitAssets(fileName, source) {
+        this.assets[fileName] = source
+        this.files.push(fileName)
     }
 }
 
