@@ -5,9 +5,12 @@ const {
     SyncHook,
     AsyncParallelHook,
 } = require('tapable')
+const path = require('path')
+const mkdirp = require('mkdirp')
 const Compilation = require('./Compilation')
 const NormalModuleFactory = require('./NormalModuleFactory')
 const Stats = require('./Stats')
+const { mkdir } = require('fs')
 class Compiler extends Tapable {
     constructor(context) {
         super()
@@ -27,19 +30,46 @@ class Compiler extends Tapable {
             compile: new SyncHook(['params']),
             make: new AsyncParallelHook(['compilation']),
             afterCompile: new AsyncSeriesHook(['compilation']),
+
+            emit: new AsyncSeriesHook(['compilation'])
         }
     }
+
+    emitAssets(compilation, callback) {
+        // 当前需要做的核心： 创建 dist 在目录创建完成之后执行文件的写操作
+        // 01 定一个工具方法用于执行文件的生成操作
+        const emitFiles = (err) => {
+            const assets = compilation.assets
+            let outputPath = this.options.output.path // 拿到输出目录
+
+            for (let file in assets) {
+                let source = assets[file]
+                let targetPath = path.posix.join(outputPath, file)
+                this.outputFileSystem.writeFileSync(targetPath, source, 'utf8')
+            }
+
+            callback(err)
+        }
+
+        // 创建目录之后启动文件写入
+        this.hooks.emit.callAsync(compilation, (err) => {
+            mkdirp.sync(this.options.output.path)
+            emitFiles()
+        })
+    }
+
     run(callback) {
         console.log('执行 run 方法~~~~~~')
         const finalCallback = function(err, stats) {
             callback(err, stats)
         }
 
-        const onCompiled = function(err, compilation) {
-            console.log('onCompiled~~~~~~')
-            finalCallback(err, new Stats(compilation))
-
+        const onCompiled = (err, compilation) => {
             // 最终在这里将处理好的 chunk 写入到指定的文件后 输出到 dist 目录
+            this.emitAssets(compilation, (err) => {
+                let stats = new Stats(compilation)
+                finalCallback(err, stats)
+            })
         }
         
         this.hooks.beforeRun.callAsync(this, (err) => {
