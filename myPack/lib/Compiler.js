@@ -38,6 +38,8 @@ class Compiler extends Tapable {
         const onCompiled = function(err, compilation) {
             console.log('onCompiled~~~~~~')
             finalCallback(err, new Stats(compilation))
+
+            // 最终在这里将处理好的 chunk 写入到指定的文件后 输出到 dist 目录
         }
         
         this.hooks.beforeRun.callAsync(this, (err) => {
@@ -54,8 +56,15 @@ class Compiler extends Tapable {
             const compilation = this.newCompilation(params)
 
             this.hooks.make.callAsync(compilation, (err) => {
-                console.log('make钩子监听触发了~~~')
-                callback(err, compilation) // onCompiled
+                // console.log('make钩子监听触发了~~~')
+                // callback(err, compilation) // onCompiled
+
+                // 在这里我们开始处理 chunk
+                compilation.seal((err) => {
+                    this.hooks.afterCompile.callAsync(compilation, (err) => {
+                        callback(err, compilation)
+                    })
+                })
             })
         })
     }

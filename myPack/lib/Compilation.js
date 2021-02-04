@@ -2,6 +2,7 @@ const path = require('path')
 const async = require('neo-async')
 const Parser = require('./Parser')
 const NormalModuleFactory = require('./NormalModuleFactory')
+const Chunk = require('./Chunk')
 
 const { Tapable, SyncHook } = require('tapable')
 
@@ -20,8 +21,12 @@ class Compilation extends Tapable {
         this.outputFileSystem = compiler.outputFileSystem
         this.entries = [] // 存入所有入口模块的数组
         this.modules = [] // 存放所有模块的数组
+        this.chunks = [] // 存放当前次打包过程所产生的 chunks
         this.hooks = {
-            succeedModule: new SyncHook(['module'])
+            succeedModule: new SyncHook(['module']),
+            seal: new SyncHook(),
+            beforeChunks: new SyncHook(),
+            afterChunks: new SyncHook()
         }
     }
 
@@ -107,6 +112,22 @@ class Compilation extends Tapable {
                 parser
             }, null, done)
         }, callback)
+    }
+
+    seal(callback) {
+        this.hooks.seal.call()
+        this.hooks.beforeChunks.call()
+        // 01 当前所有的入口模块都被存放在了 compilation 对象的 entries 数组里
+        // 02 所谓封装 chunk 指的就是依据某个入口，然后找到他的所有依赖，将他们的源代码放在一起，之后再做合并
+        for (const  entryModule of this.entries) {
+            // 核心：创建模块 加载已有模块的内容 同时记录模块信息
+            const chunk = new Chunk(entryModule)
+            // 保存
+            this.chunks.push(chunk)
+            // 给 chunk 的属性赋值
+            chunk.modules = this.modules.filter(module => module.name === chunk.name)
+        }
+        callback()
     }
 }
 
