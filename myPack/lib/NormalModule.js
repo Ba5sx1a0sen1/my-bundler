@@ -2,6 +2,7 @@ const path = require('path')
 const types = require('@babel/types')
 const generator = require('@babel/generator').default
 const traverse = require('@babel/traverse').default
+const { type } = require('os')
 
 class NormalModule {
     constructor(data) {
@@ -51,9 +52,17 @@ class NormalModule {
                             moduleId: depModuleId,
                             resource: depResource
                         })
+
+                        // 替换内容
+                        node.callee.name = '__webpack_require__'
+                        node.arguments = [types.stringLiteral(depModuleId)]
                     }
                 }
             })
+            
+            // 上述操作是利用 ast 按要求做了代码修改，下面代码内容利用 修改后的 ast 转回 code
+            let { code } = generator(this._ast)
+            this._source = code
             callback(err)
         })
     }
