@@ -1,4 +1,5 @@
 const path = require('path')
+const async = require('neo-async')
 const Parser = require('./Parser')
 const NormalModuleFactory = require('./NormalModuleFactory')
 
@@ -95,6 +96,17 @@ class Compilation extends Tapable {
         // 1 实现一个被依赖模块的递归加载
         // 2 加载模块的思想都是创建一个模块，然后想办法将加载的模块内容拿进来
         // 3 当前我们不知道 module 需要加载几个模块，此时我们需要想办法让所有的被依赖模块都加载完之后再执行 callback ? [neo-async]
+        let dependencies = module.dependencies
+        async.forEach(dependencies, (dependency, done) => {
+            this.createModule({
+                name: dependency.name,
+                context: dependency.context,
+                rawRequest: dependency.rawRequest,
+                moduleId: dependency.moduleId,
+                resource: dependency.resource,
+                parser
+            }, null, done)
+        }, callback)
     }
 }
 
