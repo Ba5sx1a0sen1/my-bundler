@@ -38,15 +38,28 @@ class Compilation extends Tapable {
     }
 
     _addModuleChain(context, entry, name, callback) {
-        let entryModule = normalModuleFactory.create({
+        this.createModule({
+            parser,
             name,
-            context,
+            context, 
             rawRequest: entry,
-            resource: path.posix.join(context, entry), // 当前操作的核心作用就是返回 entry 的绝对路径
-            parser
-        })
+            resource: path.posix.join(context, entry), // 当前操作的核心作用就是返回 entry 的绝对路径   
+            moduleId: './' + path.posix.relative(context, path.posix.join(context, entry))
+        }, (entryModule) => {
+            this.entries.push(entryModule)
+        }, callback)
+    }
 
-        const afterBuild = function (err, module) {
+    /**
+     * 定义一个创建模块的方法，达到复用目的
+     * @param {*} data 创建模块需要的属性值
+     * @param {*} doAddEntry 可选参数，在加载入口模块的时候，将入口模块的 id 写入 this.entries
+     * @param {*} callback 
+     */
+    createModule(data, doAddEntry, callback) {
+        let module = normalModuleFactory.create(data)
+
+        const afterBuild = (err, module) => {
             // 在 afterBuild 当中需要判断一下，当前 module 加载完成之后是否需要处理加载依赖
             if (module.dependencies.length > 0) {
                 // 当前逻辑表示module 有需要依赖加载模块，可以单独定一个方法实现
@@ -54,15 +67,15 @@ class Compilation extends Tapable {
                     callback(err, module)
                 })
             } else {
-                callback(err, entryModule)
+                callback(err, module)
             }
         }
 
-        this.buildModule(entryModule, afterBuild)
+        this.buildModule(module, afterBuild)
 
         // 当我们完成了本次的 build 操作之后将 module 进行保存
-        this.entries.push(entryModule)
-        this.modules.push(entryModule)
+        doAddEntry && doAddEntry(module)
+        this.modules.push(module)
     }
 
     /**
